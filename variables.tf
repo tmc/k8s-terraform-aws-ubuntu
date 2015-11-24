@@ -46,7 +46,7 @@ variable "MINION_SIZE" {
 }
 
 variable "NUM_MINIONS" {
-  default = 0
+  default = 3
   description = "number of minions"
 }
 
@@ -59,7 +59,7 @@ variable "CLUSTER_IP_RANGE" {
 }
 
 variable "MASTER_IP_RANGE" {
-  default = "10.264.0.0/24"
+  default = "10.246.0.0/24"
 }
 
 variable "KUBE_RUNTIME_CONFIG" {
@@ -68,10 +68,10 @@ variable "KUBE_RUNTIME_CONFIG" {
 
 # Enable various v1beta1 features
 variable "ENABLE_DEPLOYMENTS" {
-  default = false
+  default = "false"
 }
 variable "ENABLE_DAEMONSETS" {
-  default = false
+  default = "false"
 }
 
 # Optional: Cluster monitoring to setup as part of the cluster bring up:
@@ -83,7 +83,7 @@ variable "ENABLE_CLUSTER_MONITORING" {
 
 # Optional: Enable node logging.
 variable "ENABLE_NODE_LOGGING" {
-  default = true
+  default = "true"
 }
 variable "LOGGING_DESTINATION" {
   default = "elasticsearch"
@@ -91,7 +91,7 @@ variable "LOGGING_DESTINATION" {
 
 # Optional: When set to true, Elasticsearch and Kibana will be setup as part of the cluster bring up.
 variable "ENABLE_CLUSTER_LOGGING" {
-  default = true
+  default = "true"
 }
 
 variable "ELASTICSEARCH_LOGGING_REPLICAS" {
@@ -103,7 +103,7 @@ variable "EXTRA_DOCKER_OPTS" {
 }
 
 variable "ENABLE_CLUSTER_DNS" {
-  default = true
+  default = "true"
 }
 variable "DNS_SERVER_IP" {
   default = "10.0.0.10"
@@ -119,12 +119,12 @@ variable "DNS_REPLICAS" {
 
 # Optional: Install Kubernetes UI
 variable "ENABLE_CLUSTER_UI" {
-  default = true
+  default = "true"
 }
 
 # Optional: Create autoscaler for cluster's nodes.
 variable "ENABLE_NODE_AUTOSCALER" {
-  default = false
+  default = "false"
 }
 
 # Admission Controllers to invoke prior to persisting objects in cluster
@@ -135,7 +135,7 @@ variable "ADMISSION_CONTROL" {
 # Optional: Enable/disable public IP assignment for minions.
 # Important Note: disable only if you have setup a NAT instance for internet access and configured appropriate routes!
 variable "ENABLE_MINION_PUBLIC_IP" {
-  default = true
+  default = "true"
 }
 
 # OS options for minions

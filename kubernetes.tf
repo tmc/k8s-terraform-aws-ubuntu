@@ -28,8 +28,30 @@ resource "aws_instance" "kubernetes-master" {
   vpc_security_group_ids      = ["${aws_security_group.kubernetes-master.id}"]
   associate_public_ip_address = true
   private_ip                  = "172.20.0.9"
-  iam_instance_profile        = "${var.CLUSTER_ID}-master"
+  iam_instance_profile        = "${aws_iam_instance_profile.kubernetes-master.id}"
   user_data                   = "${template_file.user_data-master.rendered}"
+
+  ephemeral_block_device {
+    device_name = "/dev/sdc"
+    virtual_name = "ephemeral0"
+  }
+  ephemeral_block_device {
+    device_name = "/dev/sdd"
+    virtual_name = "ephemeral1"
+  }
+  ephemeral_block_device {
+    device_name = "/dev/sde"
+    virtual_name = "ephemeral2"
+  }
+  ephemeral_block_device {
+    device_name = "/dev/sdf"
+    virtual_name = "ephemeral3"
+  }
+  ebs_block_device {
+    device_name = "/dev/sdb"
+    volume_size = "20"
+    volume_type = "gp2"
+  }
 
   tags {
     "KubernetesCluster" = "${var.CLUSTER_ID}"
@@ -116,6 +138,28 @@ resource "aws_launch_configuration" "kubernetes-minion-group" {
   key_name                    = "${aws_key_pair.kubernetes.key_name}"
   associate_public_ip_address = true
   security_groups             = ["${aws_security_group.kubernetes-minion.id}"]
+
+  ephemeral_block_device {
+    device_name = "/dev/sdc"
+    virtual_name = "ephemeral0"
+  }
+  ephemeral_block_device {
+    device_name = "/dev/sdd"
+    virtual_name = "ephemeral1"
+  }
+  ephemeral_block_device {
+    device_name = "/dev/sde"
+    virtual_name = "ephemeral2"
+  }
+  ephemeral_block_device {
+    device_name = "/dev/sdf"
+    virtual_name = "ephemeral3"
+  }
+  ebs_block_device {
+    device_name = "/dev/sdb"
+    volume_size = "20"
+    volume_type = "gp2"
+  }
 }
 
 resource "template_file" "user_data-minion" {
@@ -130,13 +174,13 @@ resource "template_file" "user_data-minion" {
 resource "aws_iam_instance_profile" "kubernetes-master" {
   name  = "${var.CLUSTER_ID}-master"
   path  = "/"
-  roles = ["${var.CLUSTER_ID}-master"]
+  roles = ["${aws_iam_role.kubernetes-master.id}"]
 }
 
 resource "aws_iam_instance_profile" "kubernetes-minion" {
   name  = "${var.CLUSTER_ID}-minion"
   path  = "/"
-  roles = ["${var.CLUSTER_ID}-minion"]
+  roles = ["${aws_iam_role.kubernetes-minion.id}"]
 }
 
 

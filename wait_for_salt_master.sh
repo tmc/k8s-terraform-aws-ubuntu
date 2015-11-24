@@ -1,5 +1,6 @@
 #!/bin/bash
 # We need the salt-master to be up for the minions to work
+sudo journalctl -f /usr/bin/cloud-init & 
 attempt=0
 while true; do
   echo -n Attempt "$(($attempt+1))" to check for salt-master

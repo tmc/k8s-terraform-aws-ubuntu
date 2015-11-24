@@ -1,6 +1,8 @@
 Terraforming Kubernetes on AWS
 ==============================
 
+Status: in-the-works
+
 This set of terraform descriptions aims to match the result of a fairly standard AWS deployment.
 
 The goal of this project is effectively a terraform version of:
@@ -64,7 +66,7 @@ Supplying a custom cluster identifier:
 ```sh
 $ TF_VAR_CLUSTER_ID=terranetes make kube-up
 ```
-This will create a wholly separate instance of a cluster with 'terranetes' as the prefix.
+This will create a a cluster with 'terranetes' as the naming prefix and KubernetesCluster cluster name.
 
 
 Credentials

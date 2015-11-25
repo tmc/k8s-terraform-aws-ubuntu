@@ -21,6 +21,8 @@ You should have [terraform](https://www.terraform.io/downloads.html) installed. 
 
 You are expected to bring your own ssh keypair and it should be present in your current ssh-agent session.
 
+`kubectl` should be on your $PATH.
+
 Usage
 -----
 Clone this repository to experiment with it.

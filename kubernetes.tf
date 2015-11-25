@@ -22,7 +22,7 @@ EOF
 
 resource "null_resource" "wait_for_apiserver" {
   provisioner "remote-exec" {
-    script = "wait_for_salt_master.sh"
+    script = "wait_for_kube-apiserver.sh"
     connection {
       user = "ubuntu"
       host = "${aws_eip.kubernetes-master.public_ip}"
@@ -43,6 +43,7 @@ resource "aws_key_pair" "kubernetes" {
 resource "aws_eip" "kubernetes-master" {
   instance = "${aws_instance.kubernetes-master.id}"
   vpc      = true
+  lifecycle { create_before_destroy = true }
 }
 
 module "ami-kubernetes-master" {
@@ -98,7 +99,7 @@ resource "aws_instance" "kubernetes-master" {
       user = "ubuntu"
     }
   }
-  depends_on = ["aws_internet_gateway.gw"]  
+  lifecycle { create_before_destroy = true }
 }
 
 resource "template_file" "user_data-master" {
@@ -129,6 +130,7 @@ resource "template_file" "user_data-master" {
     DOCKER_STORAGE                 = "${var.DOCKER_STORAGE}"
     EXTRA_DOCKER_OPTS              = "${var.EXTRA_DOCKER_OPTS}"
   }
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_autoscaling_group" "kubernetes-minion-group" {
@@ -215,12 +217,14 @@ resource "aws_iam_instance_profile" "kubernetes-master" {
   name  = "${var.CLUSTER_ID}-master"
   path  = "/"
   roles = ["${aws_iam_role.kubernetes-master.id}"]
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_iam_instance_profile" "kubernetes-minion" {
   name  = "${var.CLUSTER_ID}-minion"
   path  = "/"
   roles = ["${aws_iam_role.kubernetes-minion.id}"]
+  lifecycle { create_before_destroy = true }
 }
 
 
@@ -241,6 +245,7 @@ resource "aws_iam_role" "kubernetes-master" {
   ]
 }
 EOF
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_iam_role" "kubernetes-minion" {
@@ -260,6 +265,7 @@ resource "aws_iam_role" "kubernetes-minion" {
   ]
 }
 EOF
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_iam_role_policy" "kubernetes-master" {
@@ -345,6 +351,7 @@ resource "aws_security_group" "kubernetes-master" {
   tags {
     "KubernetesCluster" = "${var.CLUSTER_ID}"
   }
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_security_group" "kubernetes-minion" {
@@ -402,6 +409,7 @@ resource "aws_security_group_rule" "allow_ingress_from_minions" {
   from_port = 0
   to_port   = 0
   protocol  = "-1"
+  lifecycle { create_before_destroy = true }
 }
 
 # minion rules
@@ -440,6 +448,7 @@ resource "aws_security_group_rule" "allow_ingress_from_master" {
   from_port = 0
   to_port   = 0
   protocol  = "-1"
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_route_table" "r" {
@@ -456,8 +465,8 @@ resource "aws_route_table" "r" {
 }
 
 resource "aws_route_table_association" "r" {
-    subnet_id = "${aws_subnet.main.id}"
-    route_table_id = "${aws_route_table.r.id}"
+  subnet_id = "${aws_subnet.main.id}"
+  route_table_id = "${aws_route_table.r.id}"
 }
 
 resource "aws_subnet" "main" {

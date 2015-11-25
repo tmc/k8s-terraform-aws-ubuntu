@@ -1,3 +1,35 @@
+output "kubernetes-api-server" {
+  value = "https://${aws_eip.kubernetes-master.public_ip}"
+}
+output "kubernetes-api-server-credentials" {
+  value = "admin:${var.KUBE_PASSWORD}"
+}
+output "kubectl configuration" {
+value = <<EOF
+ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/ca.crt' > ca.crt
+ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/kubecfg.crt' > kubecfg.crt
+ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/kubecfg.key' > kubecfg.key
+
+kubectl config set-cluster ${var.CLUSTER_ID} --server=https://${aws_eip.kubernetes-master.public_ip} --certificate-authority=ca.crt --embed-certs=true
+kubectl config set-credentials ${var.CLUSTER_ID} --username=admin --password='${var.KUBE_PASSWORD}' --client-certificate=kubecfg.crt --client-key=kubecfg.key --embed-certs=true
+kubectl config set-context ${var.CLUSTER_ID} --cluster=${var.CLUSTER_ID} --user=${var.CLUSTER_ID}
+kubectl config use-context ${var.CLUSTER_ID}
+rm ca.crt kubecfg.crt kubecfg.key
+
+kubectl cluster-info
+EOF
+}
+
+resource "null_resource" "wait_for_apiserver" {
+  provisioner "remote-exec" {
+    script = "wait_for_salt_master.sh"
+    connection {
+      user = "ubuntu"
+      host = "${aws_eip.kubernetes-master.public_ip}"
+    }
+  }
+}
+
 provider "aws" {
   region = "${var.aws_region}"
 }
@@ -5,6 +37,7 @@ provider "aws" {
 resource "aws_key_pair" "kubernetes" {
   key_name   = "kubernetes-${var.CLUSTER_ID}"
   public_key = "${var.aws_key_pair_pubkey}"
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_eip" "kubernetes-master" {
@@ -69,7 +102,7 @@ resource "aws_instance" "kubernetes-master" {
 }
 
 resource "template_file" "user_data-master" {
-  filename = "user_data-master.tpl"
+  template = "user_data-master.tpl"
   vars = {
     aws_availability_zone          = "${var.aws_availability_zone}"
     CLUSTER_ID                     = "${var.CLUSTER_ID}"
@@ -123,6 +156,8 @@ resource "aws_autoscaling_group" "kubernetes-minion-group" {
     value = "${var.CLUSTER_ID}-minion"
     propagate_at_launch = true
   }
+  lifecycle { create_before_destroy = true }
+  depends_on = ["aws_instance.kubernetes-master"]
 }
 
 module "ami-kubernetes-minions" {
@@ -133,11 +168,14 @@ module "ami-kubernetes-minions" {
 }
 
 resource "aws_launch_configuration" "kubernetes-minion-group" {
+  name_prefix                 = "${var.CLUSTER_ID}-minion-group"
   image_id                    = "${module.ami-kubernetes-minions.ami_id}"
   instance_type               = "${var.MINION_SIZE}"
   key_name                    = "${aws_key_pair.kubernetes.key_name}"
   associate_public_ip_address = true
   security_groups             = ["${aws_security_group.kubernetes-minion.id}"]
+  user_data                   = "${template_file.user_data-minion.rendered}"
+  iam_instance_profile        = "${aws_iam_instance_profile.kubernetes-minion.id}"
 
   ephemeral_block_device {
     device_name = "/dev/sdc"
@@ -160,14 +198,16 @@ resource "aws_launch_configuration" "kubernetes-minion-group" {
     volume_size = "20"
     volume_type = "gp2"
   }
+  lifecycle { create_before_destroy = true }
 }
 
 resource "template_file" "user_data-minion" {
-  filename = "user_data-minion.tpl"
+  template = "user_data-minion.tpl"
   vars = {
     DOCKER_STORAGE                 = "${var.DOCKER_STORAGE}"
     EXTRA_DOCKER_OPTS              = "${var.EXTRA_DOCKER_OPTS}"
   }
+  lifecycle { create_before_destroy = true }
 }
 
 
@@ -302,35 +342,6 @@ resource "aws_security_group" "kubernetes-master" {
   description = "Kubernetes security group applied to master nodes"
   vpc_id      = "${aws_vpc.main.id}"
 
-  ingress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-    self      = true
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags {
     "KubernetesCluster" = "${var.CLUSTER_ID}"
   }
@@ -341,37 +352,94 @@ resource "aws_security_group" "kubernetes-minion" {
   description = "Kubernetes security group applied to minion nodes"
   vpc_id      = "${aws_vpc.main.id}"
 
-  ingress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-    self      = true
-  }
-
-  ingress {
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    security_groups = ["${aws_security_group.kubernetes-master.id}"]
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags {
     "KubernetesCluster" = "${var.CLUSTER_ID}"
   }
+  lifecycle { create_before_destroy = true }
+}
+
+# master rules
+resource "aws_security_group_rule" "allow_egress_all-master" {
+  security_group_id = "${aws_security_group.kubernetes-master.id}"
+  type = "egress"
+  cidr_blocks = ["0.0.0.0/0"]
+  from_port = 0
+  to_port = 0
+  protocol = "-1"
+}
+
+resource "aws_security_group_rule" "allow_ingress_ssh-master" {
+  security_group_id = "${aws_security_group.kubernetes-master.id}"
+  type = "ingress"
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "allow_ingress_icmp-master" {
+  security_group_id = "${aws_security_group.kubernetes-master.id}"
+  type = "ingress"
+  protocol = "icmp"
+  from_port = -1
+  to_port = -1
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "allow_ingress_https-master" {
+  security_group_id = "${aws_security_group.kubernetes-master.id}"
+  type = "ingress"
+  from_port = 443
+  to_port = 443
+  protocol = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "allow_ingress_from_minions" {
+  security_group_id = "${aws_security_group.kubernetes-master.id}"
+  source_security_group_id = "${aws_security_group.kubernetes-minion.id}"
+  type = "ingress"
+  from_port = 0
+  to_port   = 0
+  protocol  = "-1"
+}
+
+# minion rules
+
+resource "aws_security_group_rule" "allow_egress_all-minion" {
+  security_group_id = "${aws_security_group.kubernetes-minion.id}"
+  type = "egress"
+  cidr_blocks = ["0.0.0.0/0"]
+  from_port = 0
+  to_port = 0
+  protocol = "-1"
+}
+
+resource "aws_security_group_rule" "allow_ingress_ssh-minion" {
+  security_group_id = "${aws_security_group.kubernetes-minion.id}"
+  type = "ingress"
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "allow_ingress_icmp-minion" {
+  security_group_id = "${aws_security_group.kubernetes-minion.id}"
+  type = "ingress"
+  protocol = "icmp"
+  from_port = -1
+  to_port = -1
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "allow_ingress_from_master" {
+  security_group_id = "${aws_security_group.kubernetes-minion.id}"
+  source_security_group_id = "${aws_security_group.kubernetes-master.id}"
+  type = "ingress"
+  from_port = 0
+  to_port   = 0
+  protocol  = "-1"
 }
 
 resource "aws_route_table" "r" {
@@ -382,7 +450,8 @@ resource "aws_route_table" "r" {
   }
 
   tags {
-    Name = "main"
+    "Name" = "main"
+    "KubernetesCluster" = "${var.CLUSTER_ID}"
   }
 }
 
@@ -399,6 +468,7 @@ resource "aws_subnet" "main" {
   tags {
     "KubernetesCluster" = "${var.CLUSTER_ID}"
   }
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_vpc" "main" {
@@ -409,5 +479,6 @@ resource "aws_vpc" "main" {
     "KubernetesCluster" = "${var.CLUSTER_ID}"
     "Name" = "kubernetes-vpc"
   }
+  lifecycle { create_before_destroy = true }
 }
 

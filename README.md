@@ -19,6 +19,8 @@ Prerequisites
 -------------
 You should have [terraform](https://www.terraform.io/downloads.html) installed. Your AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY environment variables should be populated correctly.
 
+You are expected to bring your own ssh keypair and it should be present in your current ssh-agent session.
+
 Usage
 -----
 Clone this repository to experiment with it.

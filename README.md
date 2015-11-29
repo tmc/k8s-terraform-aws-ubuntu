@@ -1,7 +1,7 @@
 Terraforming Kubernetes on AWS
 ==============================
 
-Status: upstream v1.1.2 parity
+Status: targetting upstream v1.2.0
 
 This set of terraform descriptions aims to match the result of a fairly standard AWS deployment.
 

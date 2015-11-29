@@ -28,7 +28,7 @@ readonly KUBELET_TOKEN='${KUBELET_TOKEN}'
 readonly KUBE_PROXY_TOKEN='${KUBE_PROXY_TOKEN}'
 readonly DOCKER_STORAGE='${DOCKER_STORAGE}'
 readonly DOCKER_OPTS='${EXTRA_DOCKER_OPTS}'
-readonly NUM_MINIONS='${NUM_MINIONS}'
+readonly NUM_NODES='${NUM_NODES}'
 readonly MASTER_EXTRA_SANS='IP:10.0.0.1,DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.cluster.local,DNS:kubernetes-master'
 
 
@@ -345,7 +345,7 @@ dns_replicas: '$(echo "$DNS_REPLICAS" | sed -e "s/'/''/g")'
 dns_server: '$(echo "$DNS_SERVER_IP" | sed -e "s/'/''/g")'
 dns_domain: '$(echo "$DNS_DOMAIN" | sed -e "s/'/''/g")'
 admission_control: '$(echo "$ADMISSION_CONTROL" | sed -e "s/'/''/g")'
-num_nodes: $(echo "$${NUM_MINIONS}")
+num_nodes: $(echo "$${NUM_NODES}")
 EOF
 
 readonly BASIC_AUTH_FILE="/srv/salt-overlay/salt/kube-apiserver/basic_auth.csv"

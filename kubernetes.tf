@@ -1,25 +1,3 @@
-output "kubernetes-api-server" {
-  value = "https://${aws_eip.kubernetes-master.public_ip}"
-}
-output "kubernetes-api-server-credentials" {
-  value = "admin:${var.KUBE_PASSWORD}"
-}
-output "kubectl configuration" {
-value = <<EOF
-ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/ca.crt' > ca.crt
-ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/kubecfg.crt' > kubecfg.crt
-ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/kubecfg.key' > kubecfg.key
-
-kubectl config set-cluster ${var.CLUSTER_ID} --server=https://${aws_eip.kubernetes-master.public_ip} --certificate-authority=ca.crt --embed-certs=true
-kubectl config set-credentials ${var.CLUSTER_ID} --username=admin --password='${var.KUBE_PASSWORD}' --client-certificate=kubecfg.crt --client-key=kubecfg.key --embed-certs=true
-kubectl config set-context ${var.CLUSTER_ID} --cluster=${var.CLUSTER_ID} --user=${var.CLUSTER_ID}
-kubectl config use-context ${var.CLUSTER_ID}
-rm ca.crt kubecfg.crt kubecfg.key
-
-kubectl cluster-info
-EOF
-}
-
 resource "null_resource" "wait_for_apiserver" {
   provisioner "remote-exec" {
     script = "wait_for_kube-apiserver.sh"
@@ -109,7 +87,7 @@ resource "template_file" "user_data-master" {
     CLUSTER_ID                     = "${var.CLUSTER_ID}"
     KUBE_VERSION                   = "${var.KUBE_VERSION}"
     CLUSTER_IP_RANGE               = "${var.CLUSTER_IP_RANGE}"
-    NUM_MINIONS                    = "${var.NUM_MINIONS}"
+    NUM_NODES                      = "${var.NUM_NODES}"
     ZONE                           = "${var.aws_availability_zone}"
     KUBE_USER                      = "${var.KUBE_USER}"
     KUBE_PASSWORD                  = "${var.KUBE_PASSWORD}"
@@ -134,12 +112,12 @@ resource "template_file" "user_data-master" {
 }
 
 resource "aws_autoscaling_group" "kubernetes-minion-group" {
-  desired_capacity          = "${var.NUM_MINIONS}"
+  desired_capacity          = "${var.NUM_NODES}"
   health_check_grace_period = 0
   health_check_type         = "EC2"
   launch_configuration      = "${aws_launch_configuration.kubernetes-minion-group.name}"
-  max_size                  = "${var.NUM_MINIONS}"
-  min_size                  = "${var.NUM_MINIONS}"
+  max_size                  = "${var.NUM_NODES}"
+  min_size                  = "${var.NUM_NODES}"
   name                      = "${var.CLUSTER_ID}-minion-group"
   vpc_zone_identifier       = ["${aws_subnet.main.id}"]
 
@@ -166,13 +144,13 @@ module "ami-kubernetes-minions" {
   source = "github.com/terraform-community-modules/tf_aws_ubuntu_ami/ebs"
   region = "${var.aws_region}"
   distribution = "${var.KUBE_OS_DISTRIBUTION}"
-  instance_type = "${var.MINION_SIZE}"
+  instance_type = "${var.NODE_SIZE}"
 }
 
 resource "aws_launch_configuration" "kubernetes-minion-group" {
   name_prefix                 = "${var.CLUSTER_ID}-minion-group"
   image_id                    = "${module.ami-kubernetes-minions.ami_id}"
-  instance_type               = "${var.MINION_SIZE}"
+  instance_type               = "${var.NODE_SIZE}"
   key_name                    = "${aws_key_pair.kubernetes.key_name}"
   associate_public_ip_address = true
   security_groups             = ["${aws_security_group.kubernetes-minion.id}"]

@@ -18,7 +18,7 @@ variable "AWS_S3_REGION" {
 # Provisioning values
 
 variable "KUBE_VERSION" {
-  default = "v1.1.2"
+  default = "v1.2.0"
 }
 
 variable "KUBE_PROXY_TOKEN" {}
@@ -40,12 +40,12 @@ variable "MASTER_SIZE" {
   description = "master node size"
 }
 
-variable "MINION_SIZE" {
+variable "NODE_SIZE" {
   default = "t2.micro"
   description = "minion node size"
 }
 
-variable "NUM_MINIONS" {
+variable "NUM_NODES" {
   default = 3
   description = "number of minions"
 }
@@ -134,7 +134,7 @@ variable "ADMISSION_CONTROL" {
 
 # Optional: Enable/disable public IP assignment for minions.
 # Important Note: disable only if you have setup a NAT instance for internet access and configured appropriate routes!
-variable "ENABLE_MINION_PUBLIC_IP" {
+variable "ENABLE_NODE_PUBLIC_IP" {
   default = "true"
 }
 
@@ -143,7 +143,7 @@ variable "KUBE_OS_DISTRIBUTION" {
   default = "vivid"
   description = "choice of os distribution to use (coreos, trusty, vivid, wheezy, jessie)"
 }
-variable "KUBE_MINION_IMAGE" {
+variable "KUBE_NODE_IMAGE" {
   default = ""
 }
 variable "COREOS_CHANNEL" {

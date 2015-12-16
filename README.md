@@ -51,6 +51,7 @@ Supply the contents of your public key to use in new cluster like so:
 ```sh
 $ ssh-keygen -f "~/.ssh/kube_aws_rsa" -N ''
 $ export TF_VAR_aws_key_pair_pubkey="$(cat ~/.ssh/kube_aws_rsa.pub)"
+$ ssh-add ~/.ssh/kube_aws_rsa
 $ make kube-up
 ```
 

@@ -6,6 +6,8 @@ output "kubernetes-api-server-credentials" {
 }
 output "kubectl configuration" {
 value = <<EOF
+#!/bin/bash
+set -euo pipefail
 ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/ca.crt' > ca.crt
 ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/kubecfg.crt' > kubecfg.crt
 ssh ubuntu@${aws_eip.kubernetes-master.public_ip} 'sudo cat /srv/kubernetes/kubecfg.key' > kubecfg.key
